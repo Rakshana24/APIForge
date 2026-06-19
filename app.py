@@ -1,0 +1,365 @@
+import json
+import os
+from agents.validation_agent import validation_agent
+from agents.error_classifier import classify_error
+from agents.execution_agent import execution_agent
+from agents.code_generation_agent import (
+    code_generation_agent,
+    database_generation_agent,
+     schema_generation_agent,
+     route_generation_agent,
+     main_generation_agent
+)
+from agents.test_repair_agent import(
+    repair_test_code
+)
+from agents.test_generation_agent import (
+    test_generation_agent
+)
+from agents.test_execution_agent import (
+    test_execution_agent
+)
+from agents.clarification_agent import clarification_agent
+from agents.requirement_agent import requirement_agent
+from agents.architecture_agent import architecture_agent
+from agents.repair_agent import repair_agent
+
+def read_file(path):
+
+    with open(
+        path,
+        "r",
+        encoding="utf-8"
+    ) as file:
+
+        return file.read()
+def clean_code(code):
+
+    code = code.replace("```python", "")
+    code = code.replace("```", "")
+    code = code.strip()
+
+    return code
+
+
+user_requirement = input("Requirement: ")
+
+questions = clarification_agent(user_requirement)
+
+
+if "NO_QUESTIONS" not in questions:
+
+    print("\nClarification Questions:\n")
+    print(questions)
+
+    answers = input("\nEnter answers (combined): ")
+
+    final_requirement = f"""
+{user_requirement}
+
+Additional Information:
+{answers}
+"""
+
+else:
+    final_requirement = user_requirement
+
+
+# Requirement Agent
+specification = requirement_agent(final_requirement)
+
+print("\n========== SPECIFICATION ==========")
+print(json.dumps(specification, indent=4))
+
+# Architecture Agent
+blueprint = architecture_agent(specification)
+
+print("\n========== ARCHITECTURE ==========")
+print(json.dumps(blueprint, indent=4))
+
+models_code = code_generation_agent(blueprint)
+models_code = clean_code(models_code)
+
+
+import re
+
+model_names = re.findall(
+    r"class\s+(\w+)\(",
+    models_code
+)
+
+print("\nMODELS FOUND:")
+print(model_names)
+
+
+
+print("\n========== GENERATED MODELS ==========\n")
+print(models_code)
+os.makedirs("generated_project", exist_ok=True)
+db_path = "generated_project/app.db"
+
+if os.path.exists(db_path):
+
+    os.remove(db_path)
+
+    print("Old database removed!")
+with open("generated_project/models.py", "w", encoding="utf-8") as file:
+    file.write(models_code)
+
+print("\nmodels.py generated successfully!")
+database_code = database_generation_agent()
+
+with open(
+    "generated_project/database.py",
+    "w",
+    encoding="utf-8"
+) as file:
+    file.write(database_code)
+
+print("database.py generated successfully!")
+
+schemas_code = schema_generation_agent(blueprint,  model_names)
+schemas_code = clean_code(schemas_code)
+import re
+
+schema_names = re.findall(
+    r"class\s+(\w+)\(",
+    schemas_code
+)
+
+print("\nSCHEMAS FOUND:")
+print(schema_names)
+with open(
+    "generated_project/schemas.py",
+    "w",
+    encoding="utf-8"
+) as file:
+    file.write(schemas_code)
+
+print("schemas.py generated successfully!")
+
+routes_code = route_generation_agent(blueprint,schema_names,schemas_code,model_names)
+routes_code = clean_code(routes_code)
+
+with open(
+    "generated_project/routes.py",
+    "w",
+    encoding="utf-8"
+) as file:
+    file.write(routes_code)
+
+print("routes.py generated successfully!")
+
+test_code = test_generation_agent(
+    blueprint,
+    schemas_code
+)
+print("\n========== GENERATED TESTS ==========\n")
+print(test_code)
+from agents.test_repair_agent import repair_test_code
+
+test_code = repair_test_code(test_code)
+
+test_code = clean_code(
+    test_code
+)
+
+os.makedirs(
+    "generated_project/tests",
+    exist_ok=True
+)
+
+with open(
+    "generated_project/tests/test_api.py",
+    "w",
+    encoding="utf-8"
+) as file:
+
+    file.write(test_code)
+
+print("tests generated successfully!")
+
+
+main_code = main_generation_agent()
+main_code = clean_code(main_code)
+with open(
+    "generated_project/main.py",
+    "w",
+    encoding="utf-8"
+) as file:
+
+    file.write(main_code)
+
+print("main.py generated successfully!")
+
+
+
+
+print("\nRunning Validation and Execution...\n")
+
+MAX_RETRIES = 3
+
+for attempt in range(MAX_RETRIES):
+
+    print(f"\n========== ATTEMPT {attempt + 1} ==========\n")
+
+    # -----------------------------
+    # VALIDATION
+    # -----------------------------
+
+    errors = validation_agent()
+
+    if errors:
+
+        print("Validation Failed!\n")
+
+        for error in errors:
+            print(error)
+
+        break
+
+    print("Validation Passed!")
+
+    # -----------------------------
+    # EXECUTION
+    # -----------------------------
+
+    print("\nRunning Execution Agent...\n")
+
+    execution_result = execution_agent()
+
+    if execution_result["success"]:
+
+        print("Execution Passed!")
+
+        print("\nRunning Test Execution Agent...\n")
+
+        test_result = test_execution_agent()
+
+        
+        if test_result["success"]:
+
+            print("All Tests Passed!")
+            break
+
+        else:
+
+            print("Tests Failed!")
+
+            print("\nSTDOUT:\n")
+            print(test_result["stdout"])
+
+            print("\nSTDERR:\n")
+            print(test_result["stderr"])
+
+            error_message = (
+                test_result["stdout"]
+                + "\n"
+                + test_result["stderr"]
+            )
+
+            original_test_code = read_file(
+                "generated_project/tests/test_api.py"
+            )
+
+            error_type = classify_error(error_message)
+
+            print(f"\nDetected Error Type: {error_type}")
+
+            if error_type == "test":
+
+                original_test_code = read_file(
+                    "generated_project/tests/test_api.py"
+                )
+
+                fixed_test_code = repair_test_code(
+                    original_test_code
+                )
+
+                with open(
+                    "generated_project/tests/test_api.py",
+                    "w",
+                    encoding="utf-8"
+                ) as file:
+
+                    file.write(
+                        clean_code(fixed_test_code)
+                    )
+
+            else:
+
+                if error_type == "schema":
+                    target_file = "generated_project/schemas.py"
+
+                elif error_type == "model":
+                    target_file = "generated_project/models.py"
+
+                else:
+                    target_file = "generated_project/routes.py"
+
+                original_code = read_file(
+                    target_file
+                )
+
+                fixed_code = repair_agent(
+                    original_code,
+                    error_message
+                )
+
+                with open(
+                    target_file,
+                    "w",
+                    encoding="utf-8"
+                ) as file:
+
+                    file.write(
+                        clean_code(fixed_code)
+                    )
+
+                print("\nRepair completed!")
+            continue
+
+            
+
+    print("Execution Failed!")
+
+    print("\nSTDERR:\n")
+    print(execution_result["stderr"])
+
+    # -----------------------------
+    # REPAIR
+    # -----------------------------
+
+    error_message = execution_result["stderr"]
+    
+
+    target_file = "generated_project/routes.py"
+
+    original_code = read_file(
+        target_file
+    )
+
+    fixed_code = repair_agent(
+        original_code,
+        error_message
+    )
+
+    fixed_code = clean_code(
+        fixed_code
+    )
+
+    with open(
+        target_file,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        file.write(fixed_code)
+
+    print("\nRepair completed!")
+
+else:
+
+    print(
+        "\nMaximum repair attempts reached."
+    )
