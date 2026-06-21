@@ -10,6 +10,15 @@ from agents.code_generation_agent import (
      route_generation_agent,
      main_generation_agent
 )
+from agents.test_validation_agent import (
+    validate_test_code
+)
+from agents.test_contract_validator import (
+    validate_tests_against_contracts
+)
+from agents.route_parser import (
+    extract_route_contracts
+)
 from agents.test_repair_agent import(
     repair_test_code
 )
@@ -18,6 +27,9 @@ from agents.test_generation_agent import (
 )
 from agents.test_execution_agent import (
     test_execution_agent
+)
+from agents.dependency_mapper import (
+    get_affected_files
 )
 from agents.clarification_agent import clarification_agent
 from agents.requirement_agent import requirement_agent
@@ -40,7 +52,30 @@ def clean_code(code):
     code = code.strip()
 
     return code
+def compress_error(error):
 
+    keywords = [
+        "IntegrityError",
+        "NOT NULL",
+        "ResponseValidationError",
+        "422",
+        "404",
+        "AttributeError",
+        "NameError",
+        "TypeError"
+    ]
+
+    lines = []
+
+    for line in error.splitlines():
+
+        if any(
+            keyword.lower() in line.lower()
+            for keyword in keywords
+        ):
+            lines.append(line)
+
+    return "\n".join(lines[:10])
 
 user_requirement = input("Requirement: ")
 
@@ -140,7 +175,14 @@ print("schemas.py generated successfully!")
 
 routes_code = route_generation_agent(blueprint,schema_names,schemas_code,model_names)
 routes_code = clean_code(routes_code)
+route_contracts = (
+    extract_route_contracts(
+        routes_code
+    )
+)
 
+print("\nROUTE CONTRACTS:\n")
+print(route_contracts)
 with open(
     "generated_project/routes.py",
     "w",
@@ -152,7 +194,9 @@ print("routes.py generated successfully!")
 
 test_code = test_generation_agent(
     blueprint,
-    schemas_code
+    schemas_code,
+    routes_code,
+    route_contracts
 )
 print("\n========== GENERATED TESTS ==========\n")
 print(test_code)
@@ -163,7 +207,41 @@ test_code = repair_test_code(test_code)
 test_code = clean_code(
     test_code
 )
+contract_errors = (
+    validate_tests_against_contracts(
+        test_code,
+        route_contracts
+    )
+)
 
+if contract_errors:
+
+    print(
+        "\nTEST CONTRACT VALIDATION FAILED\n"
+    )
+
+    for error in contract_errors:
+
+        print(error)
+
+    exit()
+validation_errors = (
+    validate_test_code(
+        test_code
+    )
+)
+
+if validation_errors:
+
+    print(
+        "\nTEST VALIDATION FAILED\n"
+    )
+
+    for error in validation_errors:
+
+        print(error)
+
+    exit()
 os.makedirs(
     "generated_project/tests",
     exist_ok=True
@@ -216,7 +294,44 @@ for attempt in range(MAX_RETRIES):
         for error in errors:
             print(error)
 
-        break
+        error_message = "\n".join(errors)
+
+        if "routes.py" in error_message:
+            target_file = "generated_project/routes.py"
+
+        elif "schemas.py" in error_message:
+            target_file = "generated_project/schemas.py"
+
+        elif "models.py" in error_message:
+            target_file = "generated_project/models.py"
+
+        else:
+            target_file = "generated_project/routes.py"
+
+        original_code = read_file(
+            target_file
+        )
+
+        fixed_code = repair_agent(
+            original_code,
+            error_message
+        )
+
+        fixed_code = clean_code(
+            fixed_code
+        )
+
+        with open(
+            target_file,
+            "w",
+            encoding="utf-8"
+        ) as file:
+
+            file.write(fixed_code)
+
+        print("\nValidation repair completed!")
+
+        continue
 
     print("Validation Passed!")
 
@@ -257,6 +372,9 @@ for attempt in range(MAX_RETRIES):
                 + "\n"
                 + test_result["stderr"]
             )
+            error_message = compress_error(
+                error_message
+            )
 
             original_test_code = read_file(
                 "generated_project/tests/test_api.py"
@@ -265,6 +383,43 @@ for attempt in range(MAX_RETRIES):
             error_type = classify_error(error_message)
 
             print(f"\nDetected Error Type: {error_type}")
+            affected_files = get_affected_files(
+                error_type
+            )
+
+            print(
+                f"\nAffected Files: {affected_files}"
+            )
+            if error_type == "data_contract":
+
+                print(
+                    "\nData Contract Error Detected."
+                )
+
+                print(
+                    "\nRegenerating Tests...\n"
+                )
+
+                test_code = test_generation_agent(
+                blueprint,
+                schemas_code,
+                routes_code,
+                route_contracts
+                )
+
+                test_code = clean_code(
+                test_code
+                )
+
+                with open(
+                    "generated_project/tests/test_api.py",
+                    "w",
+                    encoding="utf-8"
+                ) as file:
+
+                    file.write(test_code)
+
+                continue
 
             if error_type == "test":
 
@@ -273,7 +428,10 @@ for attempt in range(MAX_RETRIES):
                 )
 
                 fixed_test_code = repair_test_code(
-                    original_test_code
+                    original_test_code,
+                    error_message,
+                    route_contracts,
+                    schemas_code
                 )
 
                 with open(
@@ -285,6 +443,7 @@ for attempt in range(MAX_RETRIES):
                     file.write(
                         clean_code(fixed_test_code)
                     )
+                print("\nTEST REPAIR COMPLETED\n")
 
             else:
 
@@ -330,7 +489,9 @@ for attempt in range(MAX_RETRIES):
     # REPAIR
     # -----------------------------
 
-    error_message = execution_result["stderr"]
+    error_message = compress_error(
+        execution_result["stderr"]
+    )
     
 
     target_file = "generated_project/routes.py"

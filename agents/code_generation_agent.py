@@ -252,7 +252,36 @@ class UserResponse(BaseModel):
 8. Do NOT use markdown.
 
 9. Do NOT explain anything.
+IMPORTANT: RESPONSE SCHEMA GENERATION RULES
 
+1. Generate schemas ONLY from the generated model fields.
+
+2. Never invent fields.
+
+3. Every field in Response schemas must exist in the corresponding SQLAlchemy model.
+
+4. Allowed additional fields:
+   - id
+   - created_at
+   - updated_at
+
+ONLY if they exist in the model.
+
+5. Before generating a Response schema:
+
+ResponseSchemaFields ⊆ ModelFields
+
+must be true.
+
+6. Never generate fields such as:
+
+published_at
+status
+metadata
+last_login
+description
+
+unless those fields explicitly exist in the model.
 If authentication is enabled:
 
 Generate:
