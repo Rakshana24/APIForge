@@ -154,7 +154,39 @@ def validation_agent(project_path="generated_project"):
                             errors.append(
                                 f"routes.py: invented database method detected -> {pattern}"
                             )
+                    model_pattern = r"class\s+\w+\(Base\)"
 
+                    if re.search(model_pattern, source):
+                        errors.append(
+                            "routes.py contains SQLAlchemy model definitions"
+                        )
+
+                    schema_pattern = r"class\s+\w+\(BaseModel\)"
+
+                    if re.search(schema_pattern, source):
+                        errors.append(
+                            "routes.py contains Pydantic schema definitions"
+                        )
+
+                    if "Base.metadata.create_all" in source:
+                        errors.append(
+                            "routes.py should not create database tables"
+                        )
+
+                    if "app = FastAPI()" in source:
+                        errors.append(
+                            "routes.py should use APIRouter, not FastAPI app"
+                    )
+
+                    if "from models import" not in source:
+                        errors.append(
+                            "routes.py must import models from models.py"
+                        )
+
+                    if "from schemas import" not in source:
+                        errors.append(
+                            "routes.py must import schemas from schemas.py"
+                        )
                 # -------------------------
                 # MAIN VALIDATION
                 # -------------------------

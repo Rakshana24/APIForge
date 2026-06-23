@@ -1,0 +1,52 @@
+{
+    "BookCreate": [
+        "title",
+        "author",
+        "isbn",
+        "available",
+        "role"
+    ],
+    "BookResponse": [
+        "id",
+        "title",
+        "author",
+        "isbn",
+        "available",
+        "role"
+    ],
+    "MemberCreate": [
+        "name",
+        "email",
+        "role"
+    ],
+    "MemberResponse": [
+        "id",
+        "name",
+        "email",
+        "role"
+    ],
+    "LoanCreate": [
+        "book_id",
+        "member_id",
+        "loan_date",
+        "due_date",
+        "returned",
+        "role"
+    ],
+    "LoanResponse": [
+        "id",
+        "book_id",
+        "member_id",
+        "loan_date",
+        "due_date",
+        "returned",
+        "role"
+    ],
+    "LoginRequest": [
+        "username",
+        "password"
+    ],
+    "LoginResponse": [
+        "message"
+    ]
+}

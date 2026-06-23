@@ -1,0 +1,150 @@
+[
+    {
+        "function": "get_db",
+        "method": "POST",
+        "path": "/books",
+        "path_params": [],
+        "query_params": []
+    },
+    {
+        "function": "create_book",
+        "method": "GET",
+        "path": "/books",
+        "path_params": [],
+        "query_params": [
+            "book"
+        ]
+    },
+    {
+        "function": "read_books",
+        "method": "GET",
+        "path": "/books/{book_id}",
+        "path_params": [
+            "book_id"
+        ],
+        "query_params": []
+    },
+    {
+        "function": "read_book",
+        "method": "PUT",
+        "path": "/books/{book_id}",
+        "path_params": [
+            "book_id"
+        ],
+        "query_params": []
+    },
+    {
+        "function": "update_book",
+        "method": "DELETE",
+        "path": "/books/{book_id}",
+        "path_params": [
+            "book_id"
+        ],
+        "query_params": [
+            "book"
+        ]
+    },
+    {
+        "function": "delete_book",
+        "method": "POST",
+        "path": "/members",
+        "path_params": [],
+        "query_params": [
+            "book_id"
+        ]
+    },
+    {
+        "function": "create_member",
+        "method": "GET",
+        "path": "/members",
+        "path_params": [],
+        "query_params": [
+            "member"
+        ]
+    },
+    {
+        "function": "read_members",
+        "method": "GET",
+        "path": "/members/{member_id}",
+        "path_params": [
+            "member_id"
+        ],
+        "query_params": []
+    },
+    {
+        "function": "read_member",
+        "method": "PUT",
+        "path": "/members/{member_id}",
+        "path_params": [
+            "member_id"
+        ],
+        "query_params": []
+    },
+    {
+        "function": "update_member",
+        "method": "DELETE",
+        "path": "/members/{member_id}",
+        "path_params": [
+            "member_id"
+        ],
+        "query_params": [
+            "member"
+        ]
+    },
+    {
+        "function": "delete_member",
+        "method": "POST",
+        "path": "/loans",
+        "path_params": [],
+        "query_params": [
+            "member_id"
+        ]
+    },
+    {
+        "function": "create_loan",
+        "method": "GET",
+        "path": "/loans",
+        "path_params": [],
+        "query_params": [
+            "loan"
+        ]
+    },
+    {
+        "function": "read_loans",
+        "method": "GET",
+        "path": "/loans/{loan_id}",
+        "path_params": [
+            "loan_id"
+        ],
+        "query_params": []
+    },
+    {
+        "function": "read_loan",
+        "method": "PUT",
+        "path": "/loans/{loan_id}",
+        "path_params": [
+            "loan_id"
+        ],
+        "query_params": []
+    },
+    {
+        "function": "update_loan",
+        "method": "DELETE",
+        "path": "/loans/{loan_id}",
+        "path_params": [
+            "loan_id"
+        ],
+        "query_params": [
+            "loan"
+        ]
+    },
+    {
+        "function": "delete_loan",
+        "method": "POST",
+        "path": "/auth/login",
+        "path_params": [],
+        "query_params": [
+            "loan_id"
+        ]
+    }
+]

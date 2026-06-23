@@ -13,6 +13,15 @@ from agents.code_generation_agent import (
 from agents.test_validation_agent import (
     validate_test_code
 )
+from contracts.model_contract import (
+    build_model_contract
+)
+from contracts.schema_contract import (
+    save_schema_contract
+)
+from agents.test_syntax_validator import (
+    validate_test_syntax
+)
 from agents.test_contract_validator import (
     validate_tests_against_contracts
 )
@@ -113,8 +122,22 @@ print("\n========== ARCHITECTURE ==========")
 print(json.dumps(blueprint, indent=4))
 
 models_code = code_generation_agent(blueprint)
+
 models_code = clean_code(models_code)
 
+model_contract = build_model_contract(
+    blueprint
+)
+print(
+    "\nMODEL CONTRACT:\n"
+)
+
+print(
+    json.dumps(
+        model_contract,
+        indent=4
+    )
+)
 
 import re
 
@@ -153,8 +176,11 @@ with open(
 
 print("database.py generated successfully!")
 
-schemas_code = schema_generation_agent(blueprint,  model_names)
+schemas_code = schema_generation_agent(blueprint, model_contract)
 schemas_code = clean_code(schemas_code)
+schema_contract = save_schema_contract(
+    schemas_code
+)
 import re
 
 schema_names = re.findall(
@@ -173,13 +199,37 @@ with open(
 
 print("schemas.py generated successfully!")
 
-routes_code = route_generation_agent(blueprint,schema_names,schemas_code,model_names)
+routes_code = route_generation_agent(blueprint,schema_contract)
 routes_code = clean_code(routes_code)
+print("\n========== GENERATED ROUTES ==========\n")
+print(routes_code)
 route_contracts = (
     extract_route_contracts(
         routes_code
     )
 )
+if len(route_contracts) == 0:
+
+    print("\nROUTE CONTRACT EXTRACTION FAILED")
+
+    print("\nGENERATED ROUTES:\n")
+
+    print(routes_code)
+
+    raise Exception(
+        "Route Contract Extraction Failed"
+    )
+
+with open(
+    "contracts/route_contract.json",
+    "w"
+) as f:
+
+    json.dump(
+        route_contracts,
+        f,
+        indent=4
+    )
 
 print("\nROUTE CONTRACTS:\n")
 print(route_contracts)
@@ -194,19 +244,32 @@ print("routes.py generated successfully!")
 
 test_code = test_generation_agent(
     blueprint,
-    schemas_code,
-    routes_code,
+    schema_contract,
     route_contracts
 )
 print("\n========== GENERATED TESTS ==========\n")
 print(test_code)
 from agents.test_repair_agent import repair_test_code
 
-test_code = repair_test_code(test_code)
-
 test_code = clean_code(
     test_code
 )
+valid_syntax, syntax_error = (
+    validate_test_syntax(
+        test_code
+    )
+)
+
+if not valid_syntax:
+
+    print(
+        "\nTEST SYNTAX VALIDATION FAILED\n"
+    )
+
+    print(syntax_error)
+
+    exit()
+
 contract_errors = (
     validate_tests_against_contracts(
         test_code,

@@ -14,7 +14,7 @@ def extract_route_contracts(routes_code):
     # )
 
     route_pattern = (
-        r'@router\.(get|post|put|delete)\(\s*"([^"]+)"'
+    r'@(?:router|app)\.(get|post|put|delete)\s*\(\s*"([^"]+)"'
     )
 
     # Supports:
@@ -30,7 +30,8 @@ def extract_route_contracts(routes_code):
         routes_code,
         re.DOTALL
     )
-
+    print("\nROUTES FOUND:")
+    print(routes)
     functions = re.findall(
         function_pattern,
         routes_code,

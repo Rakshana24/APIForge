@@ -8,248 +8,327 @@ client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
-def test_generation_agent(blueprint, schemas_code, routes_code,route_contracts):
+def test_generation_agent(blueprint, schema_contract,route_contracts):
 
     prompt = f"""
-You are a senior Python QA engineer.
+You are a senior Python QA Engineer specializing in FastAPI, Pytest, and API contract testing.
 
-Given the following architecture blueprint:
+Your task is to generate complete pytest test code for the provided API.
+
+Architecture Blueprint:
 
 {blueprint}
 
-Generated Schemas:
+Schema Contract:
 
-{schemas_code}
-
-Generated Routes:
-
-{routes_code}
-
+{schema_contract}
 
 Route Contracts:
 
 {route_contracts}
 
-ROUTE CONTRACTS ARE THE SOURCE OF TRUTH.
+==================================================
+SOURCE OF TRUTH
+===============
+
+1. Schema Contract is the ONLY source of truth for:
+
+   * request payloads
+   * response fields
+
+2. Route Contracts are the ONLY source of truth for:
+
+   * endpoint paths
+   * HTTP methods
+   * path parameters
+   * query parameters
+
+3. Never infer information from:
+
+   * endpoint names
+   * function names
+   * common FastAPI patterns
+   * assumptions
+
+==================================================
+PRE-GENERATION ANALYSIS (MANDATORY)
+===================================
 
 Before generating tests:
 
 1. Analyze all Route Contracts.
+2. Analyze all Create Schemas.
+3. Analyze all Response Schemas.
+4. Identify entity relationships.
+5. Identify foreign keys.
+6. Identify parent-child dependencies.
 
-2. Use only:
-   - endpoint paths
-   - HTTP methods
-   - path parameters
-   - query parameters
+Build an internal dependency graph before generating code.
 
-   defined in Route Contracts.
-
-3. Never invent:
-   - endpoints
-   - query parameter names
-   - path parameter names
-   - request parameter names
-
-4. For every request:
-
-   Path parameters must match the route contract.
-
-   Query parameters must match the route contract.
-
-5. If Route Contract contains:
-
-   path_params = ["task_id"]
-
-   Generate:
-
-   /tasks/{{task_id}}
-
-   Never generate:
-
-   /tasks/{{id}}
-   /tasks/{{taskId}}
-
-6. If Route Contract contains:
-
-   query_params = ["status"]
-
-   Generate:
-
-   ?status=value
-
-   Never generate:
-
-   ?state=value
-   ?filter=value
-   ?q=value
-
-7. Do not infer parameter names from:
-   - endpoint names
-   - function names
-   - common API patterns
-
-8. Route Contracts are the only source of truth for API structure.
-
-9. If a parameter is not present in Route Contracts:
-
-   do not use it.
-
-10. Generate tests strictly from Route Contracts.
-
-Generate pytest test code.
-
-GENERAL RULES
-
-1. Use pytest.
-2. Use FastAPI TestClient.
-3. Generate tests for all available GET, POST, PUT, and DELETE endpoints.
-4. Return ONLY Python code.
-5. Do not use markdown.
-6. Do not explain anything.
-7. Import app using:
-
-from main import app
-
-8. Never use:
-
-from generated_project.main import app
----
+==================================================
 ROUTE RULES
+===========
 
-1. Generate tests ONLY for routes present in routes.py.
-2. Never invent endpoints.
-3. Do not generate tests for routes that do not exist.
-4. Never generate routes such as:
+Generate tests ONLY for routes present in Route Contracts.
 
-/reports
-/analytics
-/stats
-/search
+Never invent:
 
-unless they explicitly exist in routes.py.
----
+* endpoints
+* query parameter names
+* path parameter names
+* request parameters
+
+If Route Contract specifies:
+
+path_params = ["task_id"]
+
+Generate:
+
+/tasks/{{task_id}}
+
+Never generate:
+
+/tasks/{{id}}
+/tasks/{{taskId}}
+
+If Route Contract specifies:
+
+query_params = ["status"]
+
+Generate:
+
+?status=value
+
+Never generate:
+
+?q=value
+?filter=value
+?search=value
+
+Only use exact names from Route Contracts.
+
+==================================================
 SCHEMA RULES
+============
 
-1. Analyze all Create schemas.
-2. Analyze all Response schemas.
-3. Generate request payloads ONLY from Create schemas.
-4. Generate response assertions ONLY from Response schemas.
-5. Never invent request fields.
-6. Never invent response fields.
-7. The provided schemas are the only source of truth.
-8. Do not infer fields from endpoint names.
-9. Do not infer fields from common FastAPI patterns.
----
+Request payloads must be generated ONLY from Create Schemas.
+
+Response assertions must be generated ONLY from Response Schemas.
+
+Never invent request fields.
+
+Never invent response fields.
+
+If a field is not present in Schema Contract:
+
+DO NOT USE IT.
+
+==================================================
 ENTITY LIFECYCLE RULES
+======================
 
-1. Tests must not assume database records already exist.
-2. Create entities before retrieving, updating, or deleting them.
-3. Do not hardcode IDs.
-4. Use IDs returned from create responses.
-5. Never create the same entity twice merely to obtain an ID.
-6. Reuse the original create response.
-7. Every test must be independent.
-8. Tests must not depend on data created by previous tests.
----
+Tests must not assume records already exist.
+
+Every test must be independent.
+
+For GET by ID:
+
+1. Create entity.
+2. Extract ID.
+3. Fetch entity.
+
+For PUT by ID:
+
+1. Create entity.
+2. Extract ID.
+3. Update entity.
+
+For DELETE by ID:
+
+1. Create entity.
+2. Extract ID.
+3. Delete entity.
+
+Never rely on data created by previous tests.
+
+==================================================
+FOREIGN KEY RULES
+=================
+
+If a Create Schema contains:
+
+* user_id
+* member_id
+* book_id
+* task_id
+* loan_id
+
+or any foreign key field:
+
+1. Create the parent entity first.
+2. Extract its ID from response.
+3. Use that ID in child payloads.
+
+Never hardcode foreign key values.
+
+Wrong:
+
+user_id = 1
+
+Correct:
+
+user_response = client.post(...)
+
+user_data = user_response.json()
+
+user_id = user_data["id"]
+
+==================================================
+ID RULES
+========
+
+Never hardcode IDs.
+
+Never generate:
+
+id = 1
+user_id = 1
+book_id = 1
+member_id = 1
+loan_id = 1
+
+Always obtain IDs from API responses.
+
+==================================================
 RESPONSE VALIDATION RULES
+=========================
 
-1. Before accessing response fields:
+Before accessing response data:
 
 assert response.status_code in [200, 201]
 
-2. If a field exists in the Response schema, it may be validated.
+Only validate fields present in Response Schema.
 
-3. If a field does not exist in the Response schema, never reference it.
+Never assume:
 
-4. If "id" exists in the Response schema:
+id
+message
+created_at
+updated_at
+token
+
+exist unless present in Response Schema.
+
+If Response Schema contains "id":
 
 data = response.json()
 entity_id = data["id"]
 
 may be used.
 
-5. If "id" does not exist in the Response schema:
+If Response Schema does not contain "id":
 
-do not generate GET-by-id, PUT-by-id, or DELETE-by-id tests.
+Do not generate:
 
-6. If an endpoint returns a list:
+GET by ID
+PUT by ID
+DELETE by ID
 
-verify the response is a list before accessing elements.
+==================================================
+LIST RESPONSE RULES
+===================
 
-7. Never assume any endpoint returns:
+If endpoint returns a list:
 
-id
-message
-created_at
-updated_at
+data = response.json()
 
-unless those fields exist in the corresponding Response schema.
----
-STATUS CODE RULES
+assert isinstance(data, list)
 
-1. Do not assume POST returns 201.
-2. Accept:
+before accessing elements.
 
-200
-or
-201
-
-Example:
-
-assert response.status_code in [200, 201]
----
+==================================================
 DATETIME RULES
+==============
 
-1. Never send Python datetime objects directly in JSON.
+Never send Python datetime objects directly.
 
-INVALID:
+Wrong:
 
 published_at = datetime.now()
 
-json={{
-"published_at": published_at
-}}
-
-VALID:
+Correct:
 
 published_at = datetime.now().isoformat()
 
-json={{
-"published_at": published_at
-}}
-2. Use datetime.now().isoformat() for all DateTime fields.
+Use ISO format for all DateTime fields.
 
----
-
+==================================================
 TEST DATA RULES
+===============
 
-1. Generate unique test data.
+Generate unique data.
 
-Example:
+Use:
 
 import uuid
 
 username = f"user_{{uuid.uuid4().hex[:8]}}"
+
 email = f"{{uuid.uuid4()}}@example.com"
 
-2. Never reuse fixed values that may cause uniqueness conflicts.
+Avoid uniqueness conflicts.
 
----
+==================================================
+STATUS CODE RULES
+=================
 
-CRITICAL RULE
+Do not assume POST returns 201.
 
-Before generating tests:
+Always use:
 
-1. Analyze all routes.
-2. Analyze all Create schemas.
-3. Analyze all Response schemas.
-4. Build tests strictly from those routes and schemas.
+assert response.status_code in [200, 201]
 
-Routes are the source of truth for available endpoints.
+==================================================
+CODE RULES
+==========
 
-Create schemas are the source of truth for request payloads.
+Use:
 
-Response schemas are the source of truth for response assertions.
+from main import app
+
+Use:
+
+FastAPI TestClient
+
+Use:
+
+pytest
+
+Return ONLY Python code.
+
+Do not use markdown.
+
+Do not explain anything.
+
+==================================================
+SELF-CHECK (MANDATORY)
+======================
+
+Before returning code verify:
+
+1. Every endpoint exists in Route Contracts.
+2. Every request field exists in Create Schemas.
+3. Every asserted response field exists in Response Schemas.
+4. No hardcoded IDs exist.
+5. No invented query parameters exist.
+6. No invented endpoints exist.
+7. No Python datetime objects are sent.
+8. Every GET/PUT/DELETE by ID creates an entity first.
+9. Every foreign key references a created entity.
+10. Every test is independent.
+
+If any rule is violated, regenerate internally before returning the final code.
+
 
 """
 

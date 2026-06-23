@@ -166,7 +166,7 @@ def get_db():
     finally:
         db.close()
 """
-def schema_generation_agent(blueprint,model_names):
+def schema_generation_agent(blueprint,model_contract):
 
     prompt = f"""
 You are a senior FastAPI developer.
@@ -175,9 +175,17 @@ Given this architecture blueprint:
 
 {blueprint}
 
-Available Models:
+Model Contract:
 
-{model_names}
+{model_contract}
+
+RULES:
+
+1. The Model Contract is the source of truth.
+2. Generate schema fields only from Model Contract.
+3. Never invent fields.
+4. Every Create schema field must exist in the Model Contract.
+5. Every Response schema field must exist in the Model Contract.
 
 
 DateTime database fields must generate:
@@ -306,184 +314,129 @@ class LoginResponse(BaseModel):
     )
 
     return response.choices[0].message.content
-def route_generation_agent(blueprint,schema_names,schemas_code,model_names):
+def route_generation_agent(blueprint,schema_contract):
 
     prompt = f"""
-You are a senior FastAPI developer.
+You are a senior FastAPI backend engineer.
 
-Given the following architecture blueprint:
+Architecture Blueprint:
 
 {blueprint}
-Available schemas:
 
-{schema_names}
+Schema Contract:
 
-Generated Schemas:
+{schema_contract}
 
-{schemas_code}
+==================================================
+SOURCE OF TRUTH
+===============
 
-Generate ONLY the content of routes.py.
+1. Schema Contract is the ONLY source of truth.
 
+2. Use ONLY:
 
-Available Models:
+   * schema names
+   * request fields
+   * response fields
 
-{model_names}
+   present in Schema Contract.
 
-IMPORTANT:
+3. Never invent:
 
-Import ONLY models from Available Models.
+   * schema names
+   * request fields
+   * response fields
+   * login fields
+   * search fields
+   * foreign key fields
 
-Never import models that are not present in Available Models.
+4. If a field is not present in Schema Contract:
 
-If LoginRequest exists:
+   DO NOT USE IT.
 
-Use LoginRequest for /login endpoint.
+==================================================
+PRE-GENERATION ANALYSIS (MANDATORY)
+===================================
 
-Never use UserCreate for login.
+Before generating any code:
 
-Requirements:
+1. Analyze all models from Architecture Blueprint.
 
-1. Use FastAPI APIRouter.
+2. Analyze all schemas from Schema Contract.
 
-2. Import:
-from fastapi import APIRouter
+3. Build a mapping:
 
-3. Generate CRUD endpoints.
+   Entity
+   ↓
+   Create Schema
+   ↓
+   Response Schema
 
-4. Include:
-   - GET all
-   - GET by id
-   - POST
-   - PUT
-   - DELETE
+4. For every route determine:
 
-5. Generate routes for all entities.
+   * request schema
+   * response schema
+   * SQLAlchemy model
 
-6. Use FastAPI syntax.
+5. Verify every attribute used in route handlers exists in the corresponding Create Schema.
 
-7. Return ONLY Python code.
+6. Verify every response field exists in the corresponding Response Schema.
 
-8. Do not use markdown.
+7. If a schema is missing:
 
-9. Do not explain anything.
+   do not invent one.
 
-Never manually assign:
+==================================================
+ROUTE GENERATION RULES
+======================
 
-created_at
-updated_at
+Generate CRUD endpoints for all entities.
 
-when creating SQLAlchemy objects.
+Include:
 
-These fields are automatically handled by model defaults.
+* GET all
+* GET by ID
+* POST
+* PUT
+* DELETE
 
-Wrong:
+Use FastAPI APIRouter.
 
-Task(
-    title=...,
-    created_at=datetime.now()
-)
+Use SQLAlchemy ORM.
 
-Correct:
+Use dependency injection.
 
-Task(
-    title=...
-)
-IMPORTANT:
+Return only valid FastAPI code.
 
-1. NEVER import app from main.py
-2. NEVER use:
-   from main import app
-3. Use APIRouter only.
-4. Route files must be independent.
-5. main.py will import the router.
-IMPORTANT:
+==================================================
+ROUTE ORDERING RULES
+====================
 
-1. Use ONLY schema names provided in the "Available Schemas" list.
+When multiple routes share a common path prefix:
 
-2. Never invent new schema names.
+Static routes must be declared before dynamic routes.
 
-3. Do not create any Pydantic models inside routes.py.
+Static route example:
 
-4. All request and response schemas must be imported from schemas.py.
+/resource/search
 
-5. If a schema is not present in the Available Schemas list, do not use it.
+Dynamic route example:
 
-6. Routes.py should only contain:
-   - imports
-   - APIRouter
-   - endpoint functions
+/resource/{id}
 
-7. Do not define BaseModel classes inside routes.py.
-IMPORTANT:
+Always place fixed path routes before parameterized routes.
 
-1. Use SQLAlchemy ORM directly.
+This prevents FastAPI route matching conflicts.
 
-2. Use FastAPI dependency injection.
+==================================================
+SCHEMA USAGE RULES
+==================
 
-3. Import:
-
-from fastapi import Depends
-from sqlalchemy.orm import Session
-from database import get_db
-
-4. Database access must use:
-
-db: Session = Depends(get_db)
+Only access attributes present in Create Schema.
 
 Example:
 
-def get_items(
-    db: Session = Depends(get_db)
-):
-    ...
-
-5. Never assume custom database methods exist.
-
-Do NOT generate code like:
-
-db.create_entity(...)
-db.get_entity(...)
-db.update_entity(...)
-db.delete_entity(...)
-
-6. Use SQLAlchemy ORM operations only:
-
-db.add(...)
-db.commit(...)
-db.refresh(...)
-db.query(...)
-
-7. Generate CRUD logic directly inside route handlers.
-
-8. Do not invent repository, service, manager, or helper methods unless they are explicitly defined in the architecture blueprint.
-
-9. Return only valid FastAPI + SQLAlchemy code.
-IMPORTANT:
-
-For GET by id:
-
-obj = db.query(...).filter(...).first()
-
-If obj is None:
-
-raise HTTPException(
-    status_code=404,
-    detail="<Entity> not found"
-)
-
-Never return None for endpoints that use a response_model.
-
-
-
-IMPORTANT:
-
-When using a schema:
-
-Only access attributes that exist in that schema.
-
-Example:
-
-If TaskCreate contains:
+If Create Schema contains:
 
 title
 description
@@ -491,92 +444,138 @@ completed
 
 Valid:
 
-task.title
-task.description
-task.completed
+obj.title
+obj.description
+obj.completed
 
 Invalid:
 
-task.user_id
-task.created_at
-task.updated_at
+obj.created_at
+obj.updated_at
+obj.user_id
 
-unless those fields exist in the schema.
+unless those fields exist in schema.
 
-Never access attributes that are not present in the provided schemas.
+==================================================
+SQLALCHEMY RULES
+================
 
-Use the provided schemas as the single source of truth.
+Only SQLAlchemy model instances may be used with:
 
-IMPORTANT:
+db.add(...)
+db.refresh(...)
+db.delete(...)
 
-For authentication endpoints:
+Never add Pydantic schemas to database.
 
-If LoginResponse exists:
-
-The /login endpoint response_model must be LoginResponse.
-
-Return data matching LoginResponse exactly.
-
-Example:
-
-return LoginResponse(
-    message="Login successful"
-)
-
-Never return a User model when response_model is LoginResponse.
-
-
-IMPORTANT:
-
-Pydantic schemas are request/response validation models.
-
-SQLAlchemy models are database models.
-
-Never add a Pydantic schema instance to the database.
-
-INVALID:
-
-new_user = UserCreate(**user.model_dump())
-db.add(new_user)
-
-INVALID:
+Invalid:
 
 db.add(user)
 
-VALID:
+where user is UserCreate.
+
+Valid:
 
 new_user = User(
-    username=user.username,
-    email=user.email,
-    password=user.password,
-    role=user.role
+username=user.username,
+email=user.email
 )
 
 db.add(new_user)
 
-Only SQLAlchemy model instances may be passed to:
+==================================================
+TIMESTAMP RULES
+===============
 
-db.add(...)
-db.delete(...)
-db.refresh(...)
+Never manually assign:
 
-Request schemas are only used for input validation.
+created_at
+updated_at
 
+These are managed by model defaults.
 
+==================================================
+GET BY ID RULES
+===============
 
-IMPORTANT:
+Use:
 
-Import SQLAlchemy models from models.py.
+obj = db.query(...).filter(...).first()
 
-Example:
+If obj is None:
 
-from models import User, Task
+raise HTTPException(
+status_code=404,
+detail="<Entity> not found"
+)
 
-When creating database records:
+Never return None for endpoints using response_model.
 
-Use SQLAlchemy models.
+==================================================
+AUTHENTICATION RULES
+====================
 
-Never instantiate Create schemas inside route handlers.
+If LoginRequest exists:
+
+Use LoginRequest for login input.
+
+Never use UserCreate for login.
+
+If LoginResponse exists:
+
+Use LoginResponse as response_model.
+
+Return exactly the fields defined in LoginResponse.
+
+==================================================
+RESPONSE MODEL RULES
+====================
+
+Every endpoint returning data must define response_model.
+
+GET ALL:
+
+response_model=list[ResponseSchema]
+
+GET BY ID:
+
+response_model=ResponseSchema
+
+POST:
+
+response_model=ResponseSchema
+
+PUT:
+
+response_model=ResponseSchema
+
+Never omit response_model.
+
+==================================================
+SELF-CHECK (MANDATORY)
+======================
+
+Before returning code verify:
+
+1. Every schema used exists in Schema Contract.
+2. Every attribute accessed exists in Create Schema.
+3. Every response_model exists in Schema Contract.
+4. No invented fields exist.
+5. No invented schemas exist.
+6. No Pydantic model is passed to db.add().
+7. No manual created_at assignment exists.
+8. No manual updated_at assignment exists.
+9. Static routes appear before dynamic routes.
+10. Every data-returning endpoint has response_model.
+
+If any check fails:
+
+Regenerate internally before returning code.
+
+Return ONLY Python code.
+No markdown.
+No explanations.
+
 """
 
     response = client.chat.completions.create(
