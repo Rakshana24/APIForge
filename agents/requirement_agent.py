@@ -128,7 +128,7 @@ Product
 Order
 Cart
 """
-    result = ask_llm(prompt)
+    result = ask_llm(prompt, "requirement")
     
     
     print("\nRAW MODEL OUTPUT   :")

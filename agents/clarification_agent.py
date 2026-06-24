@@ -25,5 +25,5 @@ OR
 Do not explain your reasoning.
 """
 
-    result = ask_llm(prompt)
+    result = ask_llm(prompt, "clarification")
     return result.strip()

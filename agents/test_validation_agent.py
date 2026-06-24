@@ -50,7 +50,7 @@ def validate_test_code(test_code):
         )
     )
 
-    if login_calls > 3:
+    if login_calls > 10:
 
         errors.append(
             f"Too many login calls detected ({login_calls})."

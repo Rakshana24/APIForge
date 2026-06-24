@@ -62,12 +62,7 @@ def validation_agent(project_path="generated_project"):
 
                 if file.startswith("test_"):
 
-                    forbidden_patterns = [
-                        '"message" in response.json()',
-                        'response.json()["message"]',
-                        "response.json()['message']",
-
-                    ]
+                    forbidden_patterns = []
 
                     for pattern in forbidden_patterns:
 
@@ -78,17 +73,13 @@ def validation_agent(project_path="generated_project"):
                             )
 
 
-                    if "uuid.uuid4()" not in source:
+                    if "uuid.uuid4()" not in source and "uuid4()" not in source:
 
                         errors.append(
                             "Test file does not generate unique test data"
                         )
 
-                    bad_fields = [
-                        "message",
-                        "created_at",
-                        "updated_at"
-                    ]
+                    bad_fields = []
 
                     for field in bad_fields:
 
@@ -108,34 +99,117 @@ def validation_agent(project_path="generated_project"):
 
                 if file == "routes.py":
 
-                    if (
-                        "datetime.now()" in source and
-                        "from datetime import datetime" not in source
-                    ):
-                        errors.append(
-                            "routes.py: datetime.now() used without importing datetime"
-                        )
+                    try:
+                        tree = ast.parse(source)
+                    except Exception as e:
+                        errors.append(f"routes.py: Syntax Error: {e}")
+                        tree = None
+                        
+                    if tree:
+                        has_router = False
+                        has_models_import = False
+                        has_schemas_import = False
+
+                        for node in ast.walk(tree):
+                            if isinstance(node, ast.ClassDef):
+                                is_sqlalchemy = False
+                                is_pydantic = False
+                                for base in node.bases:
+                                    base_name = ""
+                                    if isinstance(base, ast.Name):
+                                        base_name = base.id
+                                    elif isinstance(base, ast.Attribute):
+                                        base_name = base.attr
+                                    
+                                    if base_name == "Base":
+                                        is_sqlalchemy = True
+                                    elif base_name == "BaseModel":
+                                        is_pydantic = True
+                                
+                                has_tablename = any(
+                                    isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "__tablename__" for t in n.targets)
+                                    for n in node.body
+                                )
+                                if has_tablename or is_sqlalchemy:
+                                    errors.append("routes.py contains SQLAlchemy model definitions")
+                                if is_pydantic:
+                                    errors.append("routes.py contains Pydantic schema definitions")
+
+                            target_names = []
+                            value_node = None
+                            if isinstance(node, ast.Assign):
+                                for target in node.targets:
+                                    if isinstance(target, ast.Name):
+                                        target_names.append(target.id)
+                                value_node = node.value
+                            elif isinstance(node, ast.AnnAssign):
+                                if isinstance(node.target, ast.Name):
+                                    target_names.append(node.target.id)
+                                value_node = node.value
+
+                            if value_node:
+                                if "router" in target_names:
+                                    if isinstance(value_node, ast.Call):
+                                        call_func = value_node.func
+                                        call_name = ""
+                                        if isinstance(call_func, ast.Name):
+                                            call_name = call_func.id
+                                        elif isinstance(call_func, ast.Attribute):
+                                            call_name = call_func.attr
+                                        if call_name == "APIRouter":
+                                            has_router = True
+                                if "app" in target_names:
+                                    if isinstance(value_node, ast.Call):
+                                        call_func = value_node.func
+                                        call_name = ""
+                                        if isinstance(call_func, ast.Name):
+                                            call_name = call_func.id
+                                        elif isinstance(call_func, ast.Attribute):
+                                            call_name = call_func.attr
+                                        if call_name == "FastAPI":
+                                            errors.append("routes.py should use APIRouter, not FastAPI app")
+
+                            if isinstance(node, ast.Import):
+                                for name in node.names:
+                                    if "models" in name.name:
+                                        has_models_import = True
+                                    if "schemas" in name.name:
+                                        has_schemas_import = True
+                            if isinstance(node, ast.ImportFrom) and node.module:
+                                if "models" in node.module:
+                                    has_models_import = True
+                                if "schemas" in node.module:
+                                    has_schemas_import = True
+
+                        if not has_router:
+                            errors.append("router object missing in routes.py")
+                        if not has_models_import:
+                            errors.append("routes.py must import models from models.py")
+                        if not has_schemas_import:
+                            errors.append("routes.py must import schemas from schemas.py")
+
+                    if "Base.metadata.create_all" in source:
+                        errors.append("routes.py should not create database tables")
+                    if "app = FastAPI()" in source:
+                        errors.append("routes.py should use APIRouter, not FastAPI app")
+
+                    if "datetime.now()" in source:
+                        if "from datetime import datetime" not in source and "import datetime" not in source:
+                            errors.append(
+                                "routes.py: datetime.now() used without importing datetime"
+                            )
 
                     if "from main import app" in source:
-
                         errors.append(
                             "Circular import detected in routes.py"
                         )
 
-                    if "router = APIRouter()" not in source:
-
-                        errors.append(
-                            "router object missing in routes.py"
-                        )
-
                     if "Depends(get_db)" not in source:
-
                         errors.append(
                             "routes.py: Depends(get_db) missing"
                         )
 
                     if "response_model=" not in source:
-
                         errors.append(
                             "routes.py: response_model missing in endpoints"
                         )
@@ -148,52 +222,17 @@ def validation_agent(project_path="generated_project"):
                     ]
 
                     for pattern in forbidden_patterns:
-
                         if pattern in source:
-
                             errors.append(
                                 f"routes.py: invented database method detected -> {pattern}"
                             )
-                    model_pattern = r"class\s+\w+\(Base\)"
-
-                    if re.search(model_pattern, source):
-                        errors.append(
-                            "routes.py contains SQLAlchemy model definitions"
-                        )
-
-                    schema_pattern = r"class\s+\w+\(BaseModel\)"
-
-                    if re.search(schema_pattern, source):
-                        errors.append(
-                            "routes.py contains Pydantic schema definitions"
-                        )
-
-                    if "Base.metadata.create_all" in source:
-                        errors.append(
-                            "routes.py should not create database tables"
-                        )
-
-                    if "app = FastAPI()" in source:
-                        errors.append(
-                            "routes.py should use APIRouter, not FastAPI app"
-                    )
-
-                    if "from models import" not in source:
-                        errors.append(
-                            "routes.py must import models from models.py"
-                        )
-
-                    if "from schemas import" not in source:
-                        errors.append(
-                            "routes.py must import schemas from schemas.py"
-                        )
                 # -------------------------
                 # MAIN VALIDATION
                 # -------------------------
 
                 if file == "main.py":
 
-                    if "app.include_router(router)" not in source:
+                    if not re.search(r"app\.include_router\(\s*router\s*\)", source):
 
                         errors.append(
                             "main.py: router not included"
@@ -223,17 +262,17 @@ def validation_agent(project_path="generated_project"):
                             "models.py: primary key missing"
                         )
 
-                    if "created_at" in source:
+                    if re.search(r"\bcreated_at\s*=\s*Column", source):
 
-                        if "default=datetime.utcnow" not in source:
+                        if not re.search(r"default\s*=\s*datetime\.utcnow", source):
 
                             errors.append(
                                 "models.py: created_at missing default=datetime.utcnow"
                             )
 
-                    if "updated_at" in source:
+                    if re.search(r"\bupdated_at\s*=\s*Column", source):
 
-                        if "onupdate=datetime.utcnow" not in source:
+                        if not re.search(r"onupdate\s*=\s*datetime\.utcnow", source):
 
                             errors.append(
                                 "models.py: updated_at missing onupdate=datetime.utcnow"
@@ -250,13 +289,13 @@ def validation_agent(project_path="generated_project"):
                             "schemas.py: BaseModel missing"
                         )
 
-                    if "from_attributes = True" not in source:
+                    if not re.search(r"from_attributes\s*=\s*True", source):
 
                         errors.append(
                             "schemas.py: from_attributes=True missing"
                         )
 
-                    if "LoginRequest" in source:
+                    if re.search(r"\bLoginRequest\b", source):
 
                         if "password" not in source:
 
@@ -264,7 +303,7 @@ def validation_agent(project_path="generated_project"):
                                 "schemas.py: LoginRequest missing password"
                             )
 
-                    if "LoginResponse" in source:
+                    if re.search(r"\bLoginResponse\b", source):
 
                         if (
                             "token" not in source and

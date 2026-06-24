@@ -1,23 +1,10 @@
-from groq import Groq
-from dotenv import load_dotenv
-import os
+from llm import ask_llm
 
-load_dotenv()
-
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
-
-def test_generation_agent(blueprint, schema_contract,route_contracts):
-
+def test_generation_agent(route_contracts, schema_contract):
     prompt = f"""
 You are a senior Python QA Engineer specializing in FastAPI, Pytest, and API contract testing.
 
 Your task is to generate complete pytest test code for the provided API.
-
-Architecture Blueprint:
-
-{blueprint}
 
 Schema Contract:
 
@@ -57,11 +44,10 @@ PRE-GENERATION ANALYSIS (MANDATORY)
 Before generating tests:
 
 1. Analyze all Route Contracts.
-2. Analyze all Create Schemas.
-3. Analyze all Response Schemas.
-4. Identify entity relationships.
-5. Identify foreign keys.
-6. Identify parent-child dependencies.
+2. Analyze all Create/Update/Response/Authentication Schemas.
+3. Identify entity relationships.
+4. Identify foreign keys.
+5. Identify parent-child dependencies.
 
 Build an internal dependency graph before generating code.
 
@@ -111,9 +97,9 @@ Only use exact names from Route Contracts.
 SCHEMA RULES
 ============
 
-Request payloads must be generated ONLY from Create Schemas.
+Request payloads must be generated ONLY from fields specified in Schema Contract.
 
-Response assertions must be generated ONLY from Response Schemas.
+Response assertions must be generated ONLY from fields specified in Schema Contract.
 
 Never invent request fields.
 
@@ -168,6 +154,7 @@ or any foreign key field:
 1. Create the parent entity first.
 2. Extract its ID from response.
 3. Use that ID in child payloads.
+4. If you have already created/registered the parent entity earlier in the same test function (e.g. during user registration/login setup), REUSE the ID from that earlier response. Do NOT call the create/register endpoint a second time for the same entity in the same test.
 
 Never hardcode foreign key values.
 
@@ -178,9 +165,7 @@ user_id = 1
 Correct:
 
 user_response = client.post(...)
-
 user_data = user_response.json()
-
 user_id = user_data["id"]
 
 ==================================================
@@ -317,7 +302,7 @@ SELF-CHECK (MANDATORY)
 Before returning code verify:
 
 1. Every endpoint exists in Route Contracts.
-2. Every request field exists in Create Schemas.
+2. Every request field exists in Create/Update/Authentication Schemas.
 3. Every asserted response field exists in Response Schemas.
 4. No hardcoded IDs exist.
 5. No invented query parameters exist.
@@ -328,19 +313,6 @@ Before returning code verify:
 10. Every test is independent.
 
 If any rule is violated, regenerate internally before returning the final code.
-
-
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0
-    )
-
-    return response.choices[0].message.content
+    return ask_llm(prompt, "test_generation")

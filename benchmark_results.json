@@ -1,0 +1,43 @@
+{
+    "validation_success_rate": 1.0,
+    "execution_success_rate": 1.0,
+    "test_success_rate": 0.6,
+    "repair_success_rate": 1.0,
+    "details": {
+        "Contact Management": {
+            "validation_success": true,
+            "execution_success": true,
+            "test_success": true,
+            "repairs_triggered": false,
+            "repair_success": null
+        },
+        "Library Management": {
+            "validation_success": true,
+            "execution_success": true,
+            "test_success": true,
+            "repairs_triggered": false,
+            "repair_success": null
+        },
+        "Todo Management": {
+            "validation_success": true,
+            "execution_success": true,
+            "test_success": false,
+            "repairs_triggered": false,
+            "repair_success": null
+        },
+        "Inventory Management": {
+            "validation_success": true,
+            "execution_success": true,
+            "test_success": false,
+            "repairs_triggered": false,
+            "repair_success": null
+        },
+        "Student Management": {
+            "validation_success": true,
+            "execution_success": true,
+            "test_success": true,
+            "repairs_triggered": false,
+            "repair_success": null
+        }
+    }
+}

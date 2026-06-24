@@ -1,52 +1,76 @@
 {
-    "BookCreate": [
-        "title",
-        "author",
-        "isbn",
-        "available",
-        "role"
-    ],
-    "BookResponse": [
-        "id",
-        "title",
-        "author",
-        "isbn",
-        "available",
-        "role"
-    ],
-    "MemberCreate": [
-        "name",
-        "email",
-        "role"
-    ],
-    "MemberResponse": [
-        "id",
-        "name",
-        "email",
-        "role"
-    ],
-    "LoanCreate": [
-        "book_id",
-        "member_id",
-        "loan_date",
-        "due_date",
-        "returned",
-        "role"
-    ],
-    "LoanResponse": [
-        "id",
-        "book_id",
-        "member_id",
-        "loan_date",
-        "due_date",
-        "returned",
-        "role"
-    ],
-    "LoginRequest": [
-        "username",
-        "password"
-    ],
-    "LoginResponse": [
-        "message"
-    ]
+    "Create Schemas": {
+        "StudentCreate": [
+            "name",
+            "age",
+            "email",
+            "date_of_birth"
+        ],
+        "CourseCreate": [
+            "name",
+            "description",
+            "course_code"
+        ],
+        "EnrollmentCreate": [
+            "student_id",
+            "course_id",
+            "enrollment_date"
+        ],
+        "GradeCreate": [
+            "enrollment_id",
+            "grade",
+            "date_recorded"
+        ]
+    },
+    "Update Schemas": {
+        "StudentUpdate": [
+            "name",
+            "age",
+            "email",
+            "date_of_birth"
+        ],
+        "CourseUpdate": [
+            "name",
+            "description",
+            "course_code"
+        ],
+        "EnrollmentUpdate": [
+            "student_id",
+            "course_id",
+            "enrollment_date"
+        ],
+        "GradeUpdate": [
+            "enrollment_id",
+            "grade",
+            "date_recorded"
+        ]
+    },
+    "Response Schemas": {
+        "StudentResponse": [
+            "id",
+            "name",
+            "age",
+            "email",
+            "date_of_birth"
+        ],
+        "CourseResponse": [
+            "id",
+            "name",
+            "description",
+            "course_code"
+        ],
+        "EnrollmentResponse": [
+            "id",
+            "student_id",
+            "course_id",
+            "enrollment_date"
+        ],
+        "GradeResponse": [
+            "id",
+            "enrollment_id",
+            "grade",
+            "date_recorded"
+        ]
+    },
+    "Authentication Schemas": {}
 }

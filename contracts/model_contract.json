@@ -1,13 +1,145 @@
 {
-    "Contact": [
-        "id",
-        "first_name",
-        "last_name",
-        "email",
-        "phone",
-        "address",
-        "role",
-        "created_at",
-        "updated_at"
-    ]
+    "Student": {
+        "model_name": "Student",
+        "fields": [
+            "id",
+            "name",
+            "age",
+            "email",
+            "date_of_birth"
+        ],
+        "field_types": {
+            "id": "integer",
+            "name": "string",
+            "age": "integer",
+            "email": "string",
+            "date_of_birth": "datetime"
+        },
+        "nullable": {
+            "id": false,
+            "name": false,
+            "age": false,
+            "email": false,
+            "date_of_birth": false
+        },
+        "primary_key": [
+            "id"
+        ],
+        "relationships": [
+            {
+                "model": "Enrollment",
+                "related_model": "Student",
+                "foreign_key": "student_id",
+                "relationship_type": "foreign_key"
+            }
+        ]
+    },
+    "Course": {
+        "model_name": "Course",
+        "fields": [
+            "id",
+            "name",
+            "description",
+            "course_code"
+        ],
+        "field_types": {
+            "id": "integer",
+            "name": "string",
+            "description": "string",
+            "course_code": "string"
+        },
+        "nullable": {
+            "id": false,
+            "name": false,
+            "description": true,
+            "course_code": false
+        },
+        "primary_key": [
+            "id"
+        ],
+        "relationships": [
+            {
+                "model": "Enrollment",
+                "related_model": "Course",
+                "foreign_key": "course_id",
+                "relationship_type": "foreign_key"
+            }
+        ]
+    },
+    "Enrollment": {
+        "model_name": "Enrollment",
+        "fields": [
+            "id",
+            "student_id",
+            "course_id",
+            "enrollment_date"
+        ],
+        "field_types": {
+            "id": "integer",
+            "student_id": "integer",
+            "course_id": "integer",
+            "enrollment_date": "datetime"
+        },
+        "nullable": {
+            "id": false,
+            "student_id": false,
+            "course_id": false,
+            "enrollment_date": false
+        },
+        "primary_key": [
+            "id"
+        ],
+        "relationships": [
+            {
+                "model": "Enrollment",
+                "related_model": "Student",
+                "foreign_key": "student_id",
+                "relationship_type": "foreign_key"
+            },
+            {
+                "model": "Enrollment",
+                "related_model": "Course",
+                "foreign_key": "course_id",
+                "relationship_type": "foreign_key"
+            },
+            {
+                "model": "Grade",
+                "related_model": "Enrollment",
+                "foreign_key": "enrollment_id",
+                "relationship_type": "foreign_key"
+            }
+        ]
+    },
+    "Grade": {
+        "model_name": "Grade",
+        "fields": [
+            "id",
+            "enrollment_id",
+            "grade",
+            "date_recorded"
+        ],
+        "field_types": {
+            "id": "integer",
+            "enrollment_id": "integer",
+            "grade": "string",
+            "date_recorded": "datetime"
+        },
+        "nullable": {
+            "id": false,
+            "enrollment_id": false,
+            "grade": false,
+            "date_recorded": false
+        },
+        "primary_key": [
+            "id"
+        ],
+        "relationships": [
+            {
+                "model": "Grade",
+                "related_model": "Enrollment",
+                "foreign_key": "enrollment_id",
+                "relationship_type": "foreign_key"
+            }
+        ]
+    }
 }

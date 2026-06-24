@@ -1,21 +1,12 @@
-from groq import Groq
-from dotenv import load_dotenv
-import os
+from llm import ask_llm
 
-load_dotenv()
-
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
-
-def code_generation_agent(blueprint):
-
-    prompt = prompt = f"""
+def code_generation_agent(model_contract):
+    prompt = f"""
 You are a senior FastAPI and SQLAlchemy developer.
 
-Given the following architecture blueprint:
+Given the following Model Contract:
 
-{blueprint}
+{model_contract}
 
 Generate ONLY the content of models.py.
 
@@ -32,8 +23,7 @@ Rules:
 
 5. Generate proper relationship() mappings.
 
-6. Use:
-   completed = Column(Boolean, default=False)
+6. Use the field names specified in the Model Contract for Boolean/completed status fields (e.g. is_completed = Column(Boolean, default=False)).
 
 7. Use:
    nullable=False
@@ -121,22 +111,10 @@ from datetime import datetime
 from sqlalchemy import DateTime
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0
-    )
-
-    code = response.choices[0].message.content
-
+    code = ask_llm(prompt, "model_generation")
     return code
-def database_generation_agent():
 
+def database_generation_agent():
     return """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -157,36 +135,28 @@ SessionLocal = sessionmaker(
 Base = declarative_base()
 
 def get_db():
-
     db = SessionLocal()
-
     try:
         yield db
-
     finally:
         db.close()
 """
-def schema_generation_agent(blueprint,model_contract):
 
+def schema_generation_agent(schema_contract):
     prompt = f"""
 You are a senior FastAPI developer.
 
-Given this architecture blueprint:
+Given this Schema Contract:
 
-{blueprint}
-
-Model Contract:
-
-{model_contract}
+{schema_contract}
 
 RULES:
 
-1. The Model Contract is the source of truth.
-2. Generate schema fields only from Model Contract.
-3. Never invent fields.
-4. Every Create schema field must exist in the Model Contract.
-5. Every Response schema field must exist in the Model Contract.
-
+1. Every field listed in the Schema Contract for a schema class MUST be included in the generated Pydantic model class. For example, if "user_id" is in "TaskCreate", you MUST generate "user_id: int" (or other appropriate type) in TaskCreate. Never omit foreign keys (like user_id, owner_id, etc.) if they are defined in the schema.
+2. The Schema Contract is the source of truth for all schema class names and their fields.
+3. Generate schemas ONLY for the schemas listed in the Schema Contract.
+4. Every schema class you generate must contain EXACTLY the fields specified in the Schema Contract.
+4. Never invent fields or schemas.
 
 DateTime database fields must generate:
 
@@ -203,23 +173,7 @@ updated_at: str
 published_at: str
 
 Response schemas must use datetime type for DateTime fields.
-IMPORTANT:
-
-Generate schemas ONLY for models listed in Available Models.
-
-Never generate schemas for models that are not present in Available Models.
 Generate ONLY the content of schemas.py.
-
-If a model contains a non-nullable foreign key:
-
-Example:
-user_id = Column(Integer, ForeignKey(...), nullable=False)
-
-Then the corresponding Create schema MUST contain:
-
-user_id: int
-
-Never omit required foreign keys.
 
 Requirements:
 
@@ -229,10 +183,8 @@ Requirements:
 from pydantic import BaseModel
 from typing import Optional
 
-3. For each model generate:
-
-- Create Schema
-- Response Schema
+3. For each schema listed in Schema Contract generate:
+- BaseModel schema
 
 Example:
 
@@ -262,37 +214,8 @@ class UserResponse(BaseModel):
 9. Do NOT explain anything.
 IMPORTANT: RESPONSE SCHEMA GENERATION RULES
 
-1. Generate schemas ONLY from the generated model fields.
-
-2. Never invent fields.
-
-3. Every field in Response schemas must exist in the corresponding SQLAlchemy model.
-
-4. Allowed additional fields:
-   - id
-   - created_at
-   - updated_at
-
-ONLY if they exist in the model.
-
-5. Before generating a Response schema:
-
-ResponseSchemaFields ⊆ ModelFields
-
-must be true.
-
-6. Never generate fields such as:
-
-published_at
-status
-metadata
-last_login
-description
-
-unless those fields explicitly exist in the model.
-If authentication is enabled:
-
-Generate:
+1. Every field in Response schemas must exist in the contract.
+If authentication is enabled, generate:
 
 class LoginRequest(BaseModel):
     username: str
@@ -302,103 +225,65 @@ class LoginResponse(BaseModel):
     message: str
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0
-    )
+    return ask_llm(prompt, "schema_generation")
 
-    return response.choices[0].message.content
-def route_generation_agent(blueprint,schema_contract):
-
+def route_generation_agent(route_contracts, schema_contract, model_contract):
     prompt = f"""
 You are a senior FastAPI backend engineer.
 
-Architecture Blueprint:
+Route Contract:
 
-{blueprint}
+{route_contracts}
 
 Schema Contract:
 
 {schema_contract}
 
+Model Contract:
+
+{model_contract}
+
 ==================================================
 SOURCE OF TRUTH
 ===============
 
-1. Schema Contract is the ONLY source of truth.
+1. Schema Contract is the source of truth for all schema names and fields.
 
-2. Use ONLY:
+2. Route Contract is the source of truth for route function names, methods, paths, and parameters.
+   Use ONLY:
+   * function names
+   * HTTP methods
+   * paths
+   * path parameters
+   * query parameters
+   * request_schema
+   * response_schema
+   present in Route Contract.
 
-   * schema names
-   * request fields
-   * response fields
-
-   present in Schema Contract.
-
-3. Never invent:
-
-   * schema names
-   * request fields
-   * response fields
-   * login fields
-   * search fields
-   * foreign key fields
-
-4. If a field is not present in Schema Contract:
-
-   DO NOT USE IT.
+3. Never invent function names or endpoints. If the Route Contract defines "create_book" for "POST /books", you must use exactly `def create_book(...)` and `@router.post("/books")`.
 
 ==================================================
-PRE-GENERATION ANALYSIS (MANDATORY)
-===================================
+ROUTE ARCHITECTURE ENFORCEMENT (CRITICAL)
+=========================================
 
-Before generating any code:
+Generated route files must contain ONLY:
+1. imports
+2. router = APIRouter()
+3. CRUD handlers
 
-1. Analyze all models from Architecture Blueprint.
+FORBIDDEN inside routes.py:
+- SQLAlchemy model definitions (e.g. class User(Base))
+- Pydantic schema definitions (e.g. class UserCreate(BaseModel))
+- Database initialization (e.g. Base.metadata.create_all)
+- FastAPI app creation (e.g. app = FastAPI())
 
-2. Analyze all schemas from Schema Contract.
-
-3. Build a mapping:
-
-   Entity
-   ↓
-   Create Schema
-   ↓
-   Response Schema
-
-4. For every route determine:
-
-   * request schema
-   * response schema
-   * SQLAlchemy model
-
-5. Verify every attribute used in route handlers exists in the corresponding Create Schema.
-
-6. Verify every response field exists in the corresponding Response Schema.
-
-7. If a schema is missing:
-
-   do not invent one.
+Routes must consume models.py and schemas.py by importing them. You MUST use absolute imports (e.g., `from models import User`, `from schemas import UserCreate`, `from database import get_db`). Relative imports (e.g., `from .models import ...`) are strictly FORBIDDEN and will cause import errors.
 
 ==================================================
 ROUTE GENERATION RULES
 ======================
 
 Generate CRUD endpoints for all entities.
-
-Include:
-
-* GET all
-* GET by ID
-* POST
-* PUT
-* DELETE
 
 Use FastAPI APIRouter.
 
@@ -422,7 +307,7 @@ Static route example:
 
 Dynamic route example:
 
-/resource/{id}
+/resource/{{id}}
 
 Always place fixed path routes before parameterized routes.
 
@@ -432,34 +317,11 @@ This prevents FastAPI route matching conflicts.
 SCHEMA USAGE RULES
 ==================
 
-Only access attributes present in Create Schema.
-
-Example:
-
-If Create Schema contains:
-
-title
-description
-completed
-
-Valid:
-
-obj.title
-obj.description
-obj.completed
-
-Invalid:
-
-obj.created_at
-obj.updated_at
-obj.user_id
-
-unless those fields exist in schema.
+Only access attributes present in Create/Update Schema.
 
 ==================================================
 SQLALCHEMY RULES
 ================
-
 Only SQLAlchemy model instances may be used with:
 
 db.add(...)
@@ -467,21 +329,6 @@ db.refresh(...)
 db.delete(...)
 
 Never add Pydantic schemas to database.
-
-Invalid:
-
-db.add(user)
-
-where user is UserCreate.
-
-Valid:
-
-new_user = User(
-username=user.username,
-email=user.email
-)
-
-db.add(new_user)
 
 ==================================================
 TIMESTAMP RULES
@@ -525,7 +372,10 @@ If LoginResponse exists:
 
 Use LoginResponse as response_model.
 
-Return exactly the fields defined in LoginResponse.
+You MUST return a dictionary or Pydantic object containing EXACTLY the fields defined in LoginResponse.
+For example, if LoginResponse only contains the "message" field, your login function MUST return:
+{{"message": "Login successful"}}
+Do NOT return "access_token" or "token_type" if they are not in LoginResponse.
 
 ==================================================
 RESPONSE MODEL RULES
@@ -533,65 +383,28 @@ RESPONSE MODEL RULES
 
 Every endpoint returning data must define response_model.
 
-GET ALL:
-
-response_model=list[ResponseSchema]
-
-GET BY ID:
-
-response_model=ResponseSchema
-
-POST:
-
-response_model=ResponseSchema
-
-PUT:
-
-response_model=ResponseSchema
-
-Never omit response_model.
-
 ==================================================
 SELF-CHECK (MANDATORY)
 ======================
 
 Before returning code verify:
 
-1. Every schema used exists in Schema Contract.
-2. Every attribute accessed exists in Create Schema.
-3. Every response_model exists in Schema Contract.
-4. No invented fields exist.
-5. No invented schemas exist.
-6. No Pydantic model is passed to db.add().
-7. No manual created_at assignment exists.
-8. No manual updated_at assignment exists.
-9. Static routes appear before dynamic routes.
-10. Every data-returning endpoint has response_model.
-
-If any check fails:
-
-Regenerate internally before returning code.
+1. Every endpoint exists in Route Contracts.
+2. Every request field exists in Create/Update Schemas.
+3. Every asserted response field exists in Response Schemas.
+4. No hardcoded IDs exist.
+5. No invented query parameters exist.
+6. No invented endpoints exist.
+7. No Python datetime objects are sent.
 
 Return ONLY Python code.
 No markdown.
 No explanations.
-
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0
-    )
+    return ask_llm(prompt, "route_generation")
 
-    return response.choices[0].message.content
 def main_generation_agent():
-
     return """
 from fastapi import FastAPI
 

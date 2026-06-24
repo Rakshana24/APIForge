@@ -25,7 +25,14 @@ JSON Format:
             }}
         }}
     }},
-    "relationships": [],
+    "relationships": [
+        {{
+            "model": "ModelName",
+            "related_model": "RelatedModelName",
+            "foreign_key": "field_name",
+            "relationship_type": "foreign_key"
+        }}
+    ],
     "routes": [],
     "folder_structure": []
 }}
@@ -118,7 +125,7 @@ Do not add markdown.
 Return JSON only.   
 """
 
-    result = ask_llm(prompt)
+    result = ask_llm(prompt, "architecture")
 
     result = result.replace("```json", "")
     result = result.replace("```", "")

@@ -1,150 +1,206 @@
 [
     {
-        "function": "get_db",
-        "method": "POST",
-        "path": "/books",
+        "function_name": "read_students",
+        "method": "GET",
+        "path": "/students",
         "path_params": [],
-        "query_params": []
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "List[StudentResponse]"
     },
     {
-        "function": "create_book",
+        "function_name": "read_student",
         "method": "GET",
-        "path": "/books",
-        "path_params": [],
-        "query_params": [
-            "book"
-        ]
-    },
-    {
-        "function": "read_books",
-        "method": "GET",
-        "path": "/books/{book_id}",
+        "path": "/students/{id}",
         "path_params": [
-            "book_id"
+            "id"
         ],
-        "query_params": []
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "StudentResponse"
     },
     {
-        "function": "read_book",
+        "function_name": "create_student",
+        "method": "POST",
+        "path": "/students",
+        "path_params": [],
+        "query_params": [],
+        "request_schema": "StudentCreate",
+        "response_schema": "StudentResponse"
+    },
+    {
+        "function_name": "update_student",
         "method": "PUT",
-        "path": "/books/{book_id}",
+        "path": "/students/{id}",
         "path_params": [
-            "book_id"
+            "id"
         ],
-        "query_params": []
+        "query_params": [],
+        "request_schema": "StudentUpdate",
+        "response_schema": "StudentResponse"
     },
     {
-        "function": "update_book",
+        "function_name": "delete_student",
         "method": "DELETE",
-        "path": "/books/{book_id}",
+        "path": "/students/{id}",
         "path_params": [
-            "book_id"
+            "id"
         ],
-        "query_params": [
-            "book"
-        ]
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "dict"
     },
     {
-        "function": "delete_book",
+        "function_name": "read_courses",
+        "method": "GET",
+        "path": "/courses",
+        "path_params": [],
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "List[CourseResponse]"
+    },
+    {
+        "function_name": "read_course",
+        "method": "GET",
+        "path": "/courses/{id}",
+        "path_params": [
+            "id"
+        ],
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "CourseResponse"
+    },
+    {
+        "function_name": "create_course",
         "method": "POST",
-        "path": "/members",
+        "path": "/courses",
         "path_params": [],
-        "query_params": [
-            "book_id"
-        ]
+        "query_params": [],
+        "request_schema": "CourseCreate",
+        "response_schema": "CourseResponse"
     },
     {
-        "function": "create_member",
-        "method": "GET",
-        "path": "/members",
-        "path_params": [],
-        "query_params": [
-            "member"
-        ]
-    },
-    {
-        "function": "read_members",
-        "method": "GET",
-        "path": "/members/{member_id}",
-        "path_params": [
-            "member_id"
-        ],
-        "query_params": []
-    },
-    {
-        "function": "read_member",
+        "function_name": "update_course",
         "method": "PUT",
-        "path": "/members/{member_id}",
+        "path": "/courses/{id}",
         "path_params": [
-            "member_id"
+            "id"
         ],
-        "query_params": []
+        "query_params": [],
+        "request_schema": "CourseUpdate",
+        "response_schema": "CourseResponse"
     },
     {
-        "function": "update_member",
+        "function_name": "delete_course",
         "method": "DELETE",
-        "path": "/members/{member_id}",
+        "path": "/courses/{id}",
         "path_params": [
-            "member_id"
+            "id"
         ],
-        "query_params": [
-            "member"
-        ]
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "dict"
     },
     {
-        "function": "delete_member",
+        "function_name": "read_enrollments",
+        "method": "GET",
+        "path": "/enrollments",
+        "path_params": [],
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "List[EnrollmentResponse]"
+    },
+    {
+        "function_name": "read_enrollment",
+        "method": "GET",
+        "path": "/enrollments/{id}",
+        "path_params": [
+            "id"
+        ],
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "EnrollmentResponse"
+    },
+    {
+        "function_name": "create_enrollment",
         "method": "POST",
-        "path": "/loans",
+        "path": "/enrollments",
         "path_params": [],
-        "query_params": [
-            "member_id"
-        ]
+        "query_params": [],
+        "request_schema": "EnrollmentCreate",
+        "response_schema": "EnrollmentResponse"
     },
     {
-        "function": "create_loan",
-        "method": "GET",
-        "path": "/loans",
-        "path_params": [],
-        "query_params": [
-            "loan"
-        ]
-    },
-    {
-        "function": "read_loans",
-        "method": "GET",
-        "path": "/loans/{loan_id}",
-        "path_params": [
-            "loan_id"
-        ],
-        "query_params": []
-    },
-    {
-        "function": "read_loan",
+        "function_name": "update_enrollment",
         "method": "PUT",
-        "path": "/loans/{loan_id}",
+        "path": "/enrollments/{id}",
         "path_params": [
-            "loan_id"
+            "id"
         ],
-        "query_params": []
+        "query_params": [],
+        "request_schema": "EnrollmentUpdate",
+        "response_schema": "EnrollmentResponse"
     },
     {
-        "function": "update_loan",
+        "function_name": "delete_enrollment",
         "method": "DELETE",
-        "path": "/loans/{loan_id}",
+        "path": "/enrollments/{id}",
         "path_params": [
-            "loan_id"
+            "id"
         ],
-        "query_params": [
-            "loan"
-        ]
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "dict"
     },
     {
-        "function": "delete_loan",
-        "method": "POST",
-        "path": "/auth/login",
+        "function_name": "read_grades",
+        "method": "GET",
+        "path": "/grades",
         "path_params": [],
-        "query_params": [
-            "loan_id"
-        ]
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "List[GradeResponse]"
+    },
+    {
+        "function_name": "read_grade",
+        "method": "GET",
+        "path": "/grades/{id}",
+        "path_params": [
+            "id"
+        ],
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "GradeResponse"
+    },
+    {
+        "function_name": "create_grade",
+        "method": "POST",
+        "path": "/grades",
+        "path_params": [],
+        "query_params": [],
+        "request_schema": "GradeCreate",
+        "response_schema": "GradeResponse"
+    },
+    {
+        "function_name": "update_grade",
+        "method": "PUT",
+        "path": "/grades/{id}",
+        "path_params": [
+            "id"
+        ],
+        "query_params": [],
+        "request_schema": "GradeUpdate",
+        "response_schema": "GradeResponse"
+    },
+    {
+        "function_name": "delete_grade",
+        "method": "DELETE",
+        "path": "/grades/{id}",
+        "path_params": [
+            "id"
+        ],
+        "query_params": [],
+        "request_schema": null,
+        "response_schema": "dict"
     }
 ]

@@ -16,10 +16,13 @@ def validate_tests_against_contracts(
             contract["path"].rstrip("/")
         )
 
-    urls = re.findall(
-        r'client\.(?:get|post|put|delete)\("([^"]+)',
-        test_code
-    )
+    urls = []
+    # Match double-quoted strings
+    for m in re.finditer(r'client\.(?:get|post|put|delete)\(f?"([^"]*)"', test_code):
+        urls.append(m.group(1))
+    # Match single-quoted strings
+    for m in re.finditer(r'client\.(?:get|post|put|delete)\(f?\'([^\']*)\'', test_code):
+        urls.append(m.group(1))
 
     print("\nALLOWED ROUTES:")
     print(allowed_routes)
